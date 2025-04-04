@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # Сервис загрузки файлов
+  upload-service:
+    build: ./services/upload-service
+    ports:
+      - "8001:8000"
+    environment:
+      - YANDEX_CLOUD_STORAGE_BUCKET=textbook-explainer-storage
+      - YANDEX_CLOUD_MESSAGE_QUEUE=processing-queue
+    volumes:
+      - ./services/upload-service:/app
+    depends_on:
+      - postgres
+
+  # Сервис OCR
+  ocr-service:
+    build: ./services/ocr-service
+    environment:
+      - YANDEX_CLOUD_VISION_API_KEY=${YANDEX_CLOUD_VISION_API_KEY}
+      - YANDEX_CLOUD_MESSAGE_QUEUE=processing-queue
+    volumes:
+      - ./services/ocr-service:/app
+
+  # Сервис NLP
+  nlp-service:
+    build: ./services/nlp-service
+    environment:
+      - YANDEX_GPT_API_KEY=${YANDEX_GPT_API_KEY}
+    volumes:
+      - ./services/nlp-service:/app
+
+  # Сервис диалогов
+  dialog-service:
+    build: ./services/dialog-service
+    ports:
+      - "8002:8000"
+    environment:
+      - YANDEX_DIALOGS_API_KEY=${YANDEX_DIALOGS_API_KEY}
+    volumes:
+      - ./services/dialog-service:/app
+    depends_on:
+      - postgres
+
+  # Сервис голосового взаимодействия
+  voice-service:
+    build: ./services/voice-service
+    ports:
+      - "8003:8000"
+    environment:
+      - YANDEX_SPEECHKIT_API_KEY=${YANDEX_SPEECHKIT_API_KEY}
+    volumes:
+      - ./services/voice-service:/app
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - upload-service
+      - dialog-service
+
+  # База данных
+  postgres:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=textbook_explainer
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
